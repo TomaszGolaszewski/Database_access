@@ -3,19 +3,19 @@
 #include <time.h>
 #include "module.h"
 
-void load_data(char *name_of_database, int lenght_of_table, int *table_with_data)
+void load_data(char *name_of_database, int size_of_record, int lenght_of_table, int *table_with_data)
 {
 	FILE *fp; // pointer to file
 	
-	fp = fopen (name_of_database, "r"); // open file
+	fp = fopen (name_of_database, "rb"); // open file
 	if( fp == NULL ) // check if file exists
 	{
 		perror("File cannot be opened!"); // if doesn't - print error message
 		exit(-10);
 	}
 	
-	//fread(table_with_data, sizeof(int), lenght_of_table, fp);
-	for(int i=0; i<lenght_of_table; i++) fscanf(fp,"%d", &table_with_data[i]);
+	fread(table_with_data, size_of_record, lenght_of_table, fp);
+	//for(int i=0; i<lenght_of_table; i++) fscanf(fp,"%d", &table_with_data[i]);
 	//for(int i=0; i<lenght_of_table; i++) printf("%d ", table_with_data[i]);
 	//printf(" funkcja\n");
 	
@@ -23,18 +23,19 @@ void load_data(char *name_of_database, int lenght_of_table, int *table_with_data
 	printf("Data loaded\n");
 }
 
-void save_data(char *name_of_database, int lenght_of_table, int *table_with_data)
+void save_data(char *name_of_database, int size_of_record, int lenght_of_table, int *table_with_data)
 {
 	FILE *fp; // pointer to file
 	
-	fp = fopen (name_of_database, "w"); // open file
+	fp = fopen (name_of_database, "wb"); // open file
+	//fp = fopen ("database.bin", "wb"); // open file
 	if( fp == NULL ) // check if file exists
 	{
 		perror("File cannot be opened!"); // if doesn't - print error message
 		exit(-10);
 	}
-	//fprintf (fp, "%s", table_with_data); // save data
-	for(int i=0; i<lenght_of_table; i++) fprintf (fp, "%d ", table_with_data[i]);
+	//for(int i=0; i<lenght_of_table; i++) fprintf (fp, "%d ", table_with_data[i]);
+	fwrite(table_with_data, size_of_record, lenght_of_table, fp);
 	fclose (fp); // close the file
 	printf("Data saved\n");
 }
