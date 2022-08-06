@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
 #include "module.h"
 
 void load_data(char *name_of_database, int lenght_of_table, int *table_with_data)
@@ -41,6 +42,27 @@ void save_data(char *name_of_database, int lenght_of_table, int *table_with_data
 void change_data(int index_to_change, int new_value, int *table_with_data)
 {
 	table_with_data[index_to_change] = new_value;
+}
+
+void save_log(char *name_of_logfile, int index_of_changes)
+{
+	struct timespec spec;
+    	clock_gettime(CLOCK_REALTIME, &spec);
+    	long s  = spec.tv_sec; // time in seconds
+   	long ns = spec.tv_nsec; // time in nanosecond
+   	
+   	int pid = getpid();
+   	
+   	FILE *fp; // pointer to file
+	fp = fopen (name_of_logfile, "ab"); // open file
+
+	// when [s+ns]	who [pid] what [index]
+   	fprintf(fp, "%ld\t%ld\t%d\t%d\n", s, ns, pid, index_of_changes);
+  
+	fclose (fp); // close the file
+	printf("Log saved\n");
+	
+
 }
 
 void lock_file(char *name_of_lockfile)
