@@ -5,13 +5,17 @@
 // main function
 int main(void)
 {	
-	int lenght_of_test_table = 10;
-	int *test_table = malloc(lenght_of_test_table*sizeof(int));;
-
-	lock_file();	
-	load_data(lenght_of_test_table, test_table);
+	int lenght_of_local_db= 10;
+	int *local_db = malloc(lenght_of_local_db*sizeof(int));
+	char name_of_database_file[] = "database.txt";
 	
-	for(int i=0; i<lenght_of_test_table; i++) printf("%d ", test_table[i]);
+	char name_of_lockfile[] = "lockfile.bin";
+
+	lock_file(name_of_lockfile);	
+	load_data(name_of_database_file, lenght_of_local_db, local_db);
+	unlock_file(name_of_lockfile);
+	
+	for(int i=0; i<lenght_of_local_db; i++) printf("%d ", local_db[i]);
 	printf("\n");
 	
 	int index_to_change, new_value;
@@ -19,14 +23,14 @@ int main(void)
 	scanf("%d", &index_to_change);
 	printf("new value: ");
 	scanf("%d", &new_value);
-	change_data(index_to_change, new_value, test_table);
+	change_data(index_to_change, new_value, local_db);
 	
-	for(int i=0; i<lenght_of_test_table; i++) printf("%d ", test_table[i]);
+	for(int i=0; i<lenght_of_local_db; i++) printf("%d ", local_db[i]);
 	printf("\n");
 	
-	save_data(lenght_of_test_table, test_table);
-	unlock_file();
-	//printf("Done\n");
+	lock_file(name_of_lockfile);	
+	save_data(name_of_database_file, lenght_of_local_db, local_db);
+	unlock_file(name_of_lockfile);
   
 	return 0;
 }
