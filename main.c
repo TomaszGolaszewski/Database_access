@@ -5,6 +5,10 @@
 	2022.08.07
 */
 
+// ! Program zakłada, że plik .so znajduje się w katalogu/jednym z katalogów wskazanych w zmiennej LD_LIBRARY_PATH
+// ! The program requires so that the .so file is located in directory/one of directories pointed by LD_LIBRARY_PATH
+// export LD_LIBRARY_PATH=$(pwd)
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h> // for time
@@ -35,14 +39,17 @@ void *open_dll(char *name_of_dll)
 	return handle;
 }
 
+const uint64_t NO_OF_RECORDS = 16;
+
 // main function
 int main(void)
-{	
-// !!!!!!!!!!!!!! Program zakłada, że plik .so znajduje się w katalogu/jednym z katalogów wskazanych w zmiennej LD_LIBRARY_PATH	
+{		
+	struct local_db my_local_db;
+	my_local_db.m_size_of_record = sizeof(struct record);
+	my_local_db.m_no_of_records = NO_OF_RECORDS;
+	my_local_db.m_records = malloc(my_local_db.m_size_of_record * my_local_db.m_no_of_records);
 	
-	int lenght_of_local_db = 16;
-	int size_of_record = sizeof(struct Record);
-	struct Record *local_db = malloc(lenght_of_local_db * size_of_record);
+	
 	char name_of_database_file[] = "database.bin";	
 	char name_of_lockfile[] = "lockfile.bin";
 	char name_of_logfile[] = "logfile.txt";
@@ -56,24 +63,26 @@ int main(void)
 		struct timespec st_mtim;	// Time of last modification
 		struct timespec st_ctim;	// Time of last status change 
 	*/
+	
+	// load shered objects functions (dynamic linking)
 	void *handle = open_dll("module.so");
 	void *(*lock_file)(char *);
 	lock_file = (void *(*)(char *)) dlsym(handle, "lock_file");
 	
-	void (*load_data)(char *, int, int, struct Record *);
-	load_data = (void (*)(char *, int, int, struct Record *)) dlsym(handle, "load_data");
+	void (*load_data)(char *, struct local_db *);
+	load_data = (void (*)(char *, struct local_db *)) dlsym(handle, "load_data");
 	
-	void (*load_one_record)(char *, int, int, struct Record *);
-	load_one_record= (void (*)(char *, int, int, struct Record *)) dlsym(handle, "load_one_record");
+	void (*load_one_record)(char *, int, struct local_db *);
+	load_one_record= (void (*)(char *, int, struct local_db *)) dlsym(handle, "load_one_record");
 	
-	void (*save_data)(char *, int, int, struct Record *);
-	save_data = (void (*)(char *, int, int, struct Record *)) dlsym(handle, "save_data");
+	void (*save_data)(char *, struct local_db *);
+	save_data = (void (*)(char *, struct local_db *)) dlsym(handle, "save_data");
 	
-	void (*update_data)(char *, char *, int, int, struct Record *, struct timespec* );
-	update_data = (void (*)(char *, char *, int, int, struct Record *, struct timespec*)) dlsym(handle, "update_data");
+	void (*update_data)(char *, char *, struct local_db *, struct timespec* );
+	update_data = (void (*)(char *, char *, struct local_db *, struct timespec*)) dlsym(handle, "update_data");
 	
-	void (*change_data)(int, int, struct Record * );
-	change_data = (void (*)(int, int, struct Record *)) dlsym(handle, "change_data");
+	void (*change_data)(int, int, struct local_db * );
+	change_data = (void (*)(int, int, struct local_db *)) dlsym(handle, "change_data");
 	
 	void (*save_log)(char*, int);
 	save_log= (void (*)(char*, int)) dlsym(handle, "save_log");
@@ -83,12 +92,12 @@ int main(void)
 	
 	// load database first time
 	lock_file(name_of_lockfile);	
-	load_data(name_of_database_file, size_of_record, lenght_of_local_db, local_db);
+	load_data(name_of_database_file, &my_local_db);
 	clock_gettime(CLOCK_REALTIME, &time_of_last_update); // update time of last data update
 	unlock_file(name_of_lockfile);
 	
 	// print database
-	for(int i=0; i<lenght_of_local_db; i++) printf("%d ", local_db[i].number);
+	for(int i=0; i<my_local_db.m_no_of_records; i++) printf("%d ", my_local_db.m_records[i].m_data);
 	printf("\n");
 	
 	char may_I;
@@ -102,12 +111,12 @@ int main(void)
    		
    		printf("In the meantime, the database has been changed - updating...\n");
 		lock_file(name_of_lockfile);
-		update_data(name_of_database_file, name_of_logfile, size_of_record, lenght_of_local_db, local_db, &time_of_last_update);
+		update_data(name_of_database_file, name_of_logfile, &my_local_db, &time_of_last_update);
 		//clock_gettime(CLOCK_REALTIME, &time_of_last_update); // update time of last data update
 		unlock_file(name_of_lockfile);
 		
 		// print database
-		for(int i=0; i<lenght_of_local_db; i++) printf("%d ", local_db[i].number);
+		for(int i=0; i<my_local_db.m_no_of_records; i++) printf("%d ", my_local_db.m_records[i].m_data);
 		printf("\n");
 	}
 	
@@ -118,20 +127,20 @@ int main(void)
 		scanf("%d", &index_to_change);
 		printf("New value: ");
 		scanf("%d", &new_value);
-		change_data(index_to_change, new_value, local_db);
+		change_data(index_to_change, new_value, &my_local_db);
 		
 		// print database
-		for(int i=0; i<lenght_of_local_db; i++) printf("%d ", local_db[i].number);
+		for(int i=0; i<my_local_db.m_no_of_records; i++) printf("%d ", my_local_db.m_records[i].m_data);
 		printf("\n");
 	
 		// save database
 		lock_file(name_of_lockfile);	
 		save_log(name_of_logfile, index_to_change);
-		save_data(name_of_database_file, size_of_record, lenght_of_local_db, local_db);		
+		save_data(name_of_database_file, &my_local_db);		
 		unlock_file(name_of_lockfile);
 	}
 
-  	free(local_db);
+  	free(my_local_db.m_records );
   	dlclose( handle );
   	printf("Program completed and closed correctly\n");
 	return 0;

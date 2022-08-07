@@ -19,25 +19,35 @@ FILE *open_file_and_check(char *name_of_file, char *type_of_operation)
 	return fp;
 }
 
-void load_data(char *name_of_database, int size_of_record, int lenght_of_table, struct Record *local_db)
+void load_data(char *name_of_database, struct local_db *my_local_db)
 {
 	FILE *fp = open_file_and_check(name_of_database, "rb"); // open file
 	
-	fread(local_db, size_of_record, lenght_of_table, fp); // read the database
+	struct local_db temp_local_db;
+	
+	fread(&temp_local_db, sizeof(struct local_db) - sizeof(my_local_db->m_records), 1, fp); // read the database
+	
+	if(temp_local_db.m_size_of_record != my_local_db->m_size_of_record || temp_local_db.m_no_of_records != my_local_db->m_no_of_records)
+	{
+		perror("Mismatch between read and expected local_db data!");
+		exit(-10);
+	}
+
+	fread(my_local_db->m_records, my_local_db->m_size_of_record, my_local_db->m_no_of_records, fp);
 	
 	fclose (fp); // close the file
 	printf("Data loaded\n");
 }
 
-void load_one_record(char *name_of_database, int size_of_record, int number_of_record, struct Record *local_db)
+void load_one_record(char *name_of_database, int number_of_record, struct local_db *my_local_db)
 {
 	FILE *fp = open_file_and_check(name_of_database, "rb"); // open file
 	
- 	if(!fseek(fp, size_of_record * number_of_record, SEEK_SET)) // set cursor and check if cursor is on the good position
+ 	if(!fseek(fp, sizeof(struct local_db) - sizeof(my_local_db->m_records) + my_local_db->m_size_of_record * number_of_record, SEEK_SET)) // set cursor and check if cursor is on the good position
  	{
 		// char * fgets( char * str, int num, FILE * stream );
 		// fgets work only with text files, so we will need additional type conversion
-		fread(local_db + number_of_record, size_of_record, 1, fp);
+		fread(my_local_db->m_records + number_of_record, my_local_db->m_size_of_record, 1, fp);
 	}
 	else
 	{
@@ -48,7 +58,7 @@ void load_one_record(char *name_of_database, int size_of_record, int number_of_r
 	printf("Record no. %d loaded\n", number_of_record);
 }
 
-void update_data(char *name_of_database_file, char *name_of_logfile, int size_of_record, int lenght_of_table, struct Record *local_db, struct timespec *time_of_last_update)
+void update_data(char *name_of_database_file, char *name_of_logfile, struct local_db *my_local_db, struct timespec *time_of_last_update)
 {
     	long s  = time_of_last_update->tv_sec; // time in seconds
    	long ns = time_of_last_update->tv_nsec; // time in nanosecond
@@ -74,7 +84,7 @@ void update_data(char *name_of_database_file, char *name_of_logfile, int size_of
 			if((log_s > s || (log_s == s && log_ns > ns)) && log_pid != pid) 
 			{	
 				// if new record was found (younger entry made by another prosess)		
-				load_one_record(name_of_database_file, size_of_record, index_of_changes, local_db); // load modified record
+				load_one_record(name_of_database_file, index_of_changes, my_local_db); // load modified record
 				// update time of last data update
 				time_of_last_update->tv_sec = log_s;
 				time_of_last_update->tv_nsec = log_ns;
@@ -84,18 +94,26 @@ void update_data(char *name_of_database_file, char *name_of_logfile, int size_of
 	}
 }
 
-void save_data(char *name_of_database, int size_of_record, int lenght_of_table, struct Record *local_db)
+void save_data(char *name_of_database, struct local_db *my_local_db)
 {
 	FILE *fp = open_file_and_check(name_of_database, "wb"); // open file
 	
-	fwrite(local_db, size_of_record, lenght_of_table, fp); // write the database into the file
+	// write the database into the file
+	fwrite(my_local_db, sizeof(struct local_db) - sizeof(my_local_db->m_records), 1, fp);
+	fwrite(my_local_db->m_records, my_local_db->m_size_of_record, my_local_db->m_no_of_records, fp);
+	
 	fclose (fp); // close the file
 	printf("Data saved\n");
 }
 
-void change_data(int index_to_change, int new_value, struct Record *local_db)
+void change_data(int index_to_change, int new_value, struct local_db *my_local_db)
 {
-	local_db[index_to_change].number = new_value;
+	if(index_to_change >= my_local_db->m_no_of_records)
+	{
+		printf("Wrong element id, ignoring...\n");
+		return;
+	}
+	my_local_db->m_records[index_to_change].m_data = new_value;
 }
 
 void save_log(char *name_of_logfile, int index_of_changes)
