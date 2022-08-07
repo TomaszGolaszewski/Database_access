@@ -55,7 +55,7 @@ void update_data(char *name_of_database_file, char *name_of_logfile, int size_of
    	int pid = getpid();
    	
    	long log_s, log_ns;
-   	int log_pid, index;
+   	int log_pid, index_of_changes;
 
 	FILE *fp; // pointer to file
 	fp = fopen (name_of_logfile, "r"); // open file
@@ -67,14 +67,13 @@ void update_data(char *name_of_database_file, char *name_of_logfile, int size_of
 	else
 	{
 		// if it exists scan logfile until End Of logFile
-		while(fscanf(fp, "%ld\t%ld\t%d\t%d\n", &log_s, &log_ns, &log_pid, &index) != EOF) 
+		while(fscanf(fp, "%ld\t%ld\t%d\t%d\n", &log_s, &log_ns, &log_pid, &index_of_changes) != EOF) 
 		{
 			//printf("%ld\t%ld\t%d\t%d\n", log_s, log_ns, log_pid, index);
 			if((log_s > s || (log_s == s && log_ns > ns)) && log_pid != pid) 
 			{	
-				// if new record was found (younger entry made by another prosess)
-				//printf("%ld\t%ld\n", log_s, s);		
-				load_one_record(name_of_database_file, size_of_record, index, local_db); // load modified record
+				// if new record was found (younger entry made by another prosess)		
+				load_one_record(name_of_database_file, size_of_record, index_of_changes, local_db); // load modified record
 			}
 		} 
 		printf("Database is updated!\n");
@@ -86,7 +85,6 @@ void save_data(char *name_of_database, int size_of_record, int lenght_of_table, 
 	FILE *fp; // pointer to file
 	
 	fp = fopen (name_of_database, "wb"); // open file
-	//fp = fopen ("database.bin", "wb"); // open file
 	if( fp == NULL ) // check if file exists
 	{
 		perror("File cannot be opened!"); // if doesn't - print error message
