@@ -12,12 +12,20 @@
 #include <sys/stat.h> // for files' stats
 #include "module.h"
 
+/*
+// structure for storing record
+struct Record
+{
+	int number;
+};
+*/
+
 // main function
 int main(void)
 {	
 	int lenght_of_local_db = 16;
-	int size_of_record = sizeof(int);
-	int *local_db = malloc(lenght_of_local_db * size_of_record);
+	int size_of_record = sizeof(struct Record);
+	struct Record *local_db = malloc(lenght_of_local_db * size_of_record);
 	char name_of_database_file[] = "database.bin";	
 	char name_of_lockfile[] = "lockfile.bin";
 	char name_of_logfile[] = "logfile.txt";
@@ -39,7 +47,7 @@ int main(void)
 	unlock_file(name_of_lockfile);
 	
 	// print database
-	for(int i=0; i<lenght_of_local_db; i++) printf("%d ", local_db[i]);
+	for(int i=0; i<lenght_of_local_db; i++) printf("%d ", local_db[i].number);
 	printf("\n");
 	
 	char may_I;
@@ -56,21 +64,21 @@ int main(void)
 		unlock_file(name_of_lockfile);
 		
 		// print database
-		for(int i=0; i<lenght_of_local_db; i++) printf("%d ", local_db[i]);
+		for(int i=0; i<lenght_of_local_db; i++) printf("%d ", local_db[i].number);
 		printf("\n");
 	}
 	
 	int index_to_change, new_value;
-	if(may_I == 89 || may_I == 121) // "Y" == 89, "y" == 121
+	if(may_I == (int)'Y' || may_I == (int)'y') // 'Y' == 89, 'y' == 121
 	{	
-		printf("index to change: ");
+		printf("Index to change: ");
 		scanf("%d", &index_to_change);
-		printf("new value: ");
+		printf("New value: ");
 		scanf("%d", &new_value);
 		change_data(index_to_change, new_value, local_db);
 		
 		// print database
-		for(int i=0; i<lenght_of_local_db; i++) printf("%d ", local_db[i]);
+		for(int i=0; i<lenght_of_local_db; i++) printf("%d ", local_db[i].number);
 		printf("\n");
 	
 		// save database
