@@ -1,12 +1,17 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+#include <unistd.h>
 
-void load_data(char *name_of_database, int size_of_record, int lenght_of_table, int *table_with_data);
+void load_data(char *name_of_database, int size_of_record, int lenght_of_table, int *local_db);
 
-void save_data(char *name_of_database, int size_of_record, int lenght_of_table, int *table_with_data);
+void load_one_record(char *name_of_database, int size_of_record, int number_of_record, int *local_db);
 
-void change_data(int index_to_change, int new_value, int *table_with_data);
+void save_data(char *name_of_database, int size_of_record, int lenght_of_table, int *local_db);
+
+void update_data(char *name_of_database_file, char *name_of_logfile, int size_of_record, int lenght_of_table, int *local_db, struct timespec time_of_last_update);
+
+void change_data(int index_to_change, int new_value, int *local_db);
 
 void save_log(char *name_of_logfile, int index_of_changes);
 

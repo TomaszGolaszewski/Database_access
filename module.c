@@ -1,9 +1,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+#include <unistd.h>
 #include "module.h"
 
-void load_data(char *name_of_database, int size_of_record, int lenght_of_table, int *table_with_data)
+void load_data(char *name_of_database, int size_of_record, int lenght_of_table, int *local_db)
 {
 	FILE *fp; // pointer to file
 	
@@ -14,16 +15,73 @@ void load_data(char *name_of_database, int size_of_record, int lenght_of_table, 
 		exit(-10);
 	}
 	
-	fread(table_with_data, size_of_record, lenght_of_table, fp);
-	//for(int i=0; i<lenght_of_table; i++) fscanf(fp,"%d", &table_with_data[i]);
-	//for(int i=0; i<lenght_of_table; i++) printf("%d ", table_with_data[i]);
-	//printf(" funkcja\n");
+	fread(local_db, size_of_record, lenght_of_table, fp); // read the database
 	
 	fclose (fp); // close the file
 	printf("Data loaded\n");
 }
 
-void save_data(char *name_of_database, int size_of_record, int lenght_of_table, int *table_with_data)
+void load_one_record(char *name_of_database, int size_of_record, int number_of_record, int *local_db)
+{
+	FILE *fp; // pointer to file
+	
+	fp = fopen (name_of_database, "rb"); // open file
+	if( fp == NULL ) // check if file exists
+	{
+		perror("File cannot be opened!"); // if doesn't - print error message
+		exit(-10);
+	}
+	
+ 	if(!fseek(fp, size_of_record * number_of_record, SEEK_SET)) // set cursor and check if cursor is on the good position
+ 	{
+		// char * fgets( char * str, int num, FILE * stream );
+		// fgets work only with text files, so we will need additional type conversion
+		fread(local_db + number_of_record, size_of_record, 1, fp);
+	}
+	else
+	{
+		perror("fseek error! - cursor in the wrong position!"); // if doesn't - print error message
+	}
+
+	fclose (fp); // close the file
+	printf("Record no. %d loaded\n", number_of_record);
+}
+
+void update_data(char *name_of_database_file, char *name_of_logfile, int size_of_record, int lenght_of_table, int *local_db, struct timespec time_of_last_update)
+{
+    	long s  = time_of_last_update.tv_sec; // time in seconds
+   	long ns = time_of_last_update.tv_nsec; // time in nanosecond
+   	
+   	int pid = getpid();
+   	
+   	long log_s, log_ns;
+   	int log_pid, index;
+
+	FILE *fp; // pointer to file
+	fp = fopen (name_of_logfile, "r"); // open file
+	if( fp == NULL ) // check if file exists
+	{
+		// if doesn't...
+		printf("Logfile doesn't exist - database is updated!"); 
+	}
+	else
+	{
+		// if it exists scan logfile until End Of logFile
+		while(fscanf(fp, "%ld\t%ld\t%d\t%d\n", &log_s, &log_ns, &log_pid, &index) != EOF) 
+		{
+			//printf("%ld\t%ld\t%d\t%d\n", log_s, log_ns, log_pid, index);
+			if((log_s > s || (log_s == s && log_ns > ns)) && log_pid != pid) 
+			{	
+				// if new record was found (younger entry made by another prosess)
+				//printf("%ld\t%ld\n", log_s, s);		
+				load_one_record(name_of_database_file, size_of_record, index, local_db); // load modified record
+			}
+		} 
+		printf("Database is updated!\n");
+	}
+}
+
+void save_data(char *name_of_database, int size_of_record, int lenght_of_table, int *local_db)
 {
 	FILE *fp; // pointer to file
 	
@@ -34,15 +92,14 @@ void save_data(char *name_of_database, int size_of_record, int lenght_of_table, 
 		perror("File cannot be opened!"); // if doesn't - print error message
 		exit(-10);
 	}
-	//for(int i=0; i<lenght_of_table; i++) fprintf (fp, "%d ", table_with_data[i]);
-	fwrite(table_with_data, size_of_record, lenght_of_table, fp);
+	fwrite(local_db, size_of_record, lenght_of_table, fp); // write the database into the file
 	fclose (fp); // close the file
 	printf("Data saved\n");
 }
 
-void change_data(int index_to_change, int new_value, int *table_with_data)
+void change_data(int index_to_change, int new_value, int *local_db)
 {
-	table_with_data[index_to_change] = new_value;
+	local_db[index_to_change] = new_value;
 }
 
 void save_log(char *name_of_logfile, int index_of_changes)
@@ -62,12 +119,12 @@ void save_log(char *name_of_logfile, int index_of_changes)
   
 	fclose (fp); // close the file
 	printf("Log saved\n");
-	
-
 }
 
 void lock_file(char *name_of_lockfile)
 {
+	// in the future we can try fcntl or lockf - but online reviews about these functions are bad.
+	
 	FILE *fp; // pointer to file
 	int flag;
 	int pid = getpid();
@@ -84,13 +141,15 @@ void lock_file(char *name_of_lockfile)
 		printf("Waiting for access...\n");
 		do 
 		{
-			fscanf(fp,"%d", &flag);
-			rewind(fp);
+			fscanf(fp,"%d", &flag); // start the race !!!
+			rewind(fp); // move cursor at the begining of the lockfile
 		}
 		while(flag != -1);
 	}
-	fprintf (fp, "%d", pid);
-	fclose (fp); // close the file
+	fprintf (fp, "%d", pid); 
+	fclose (fp); // close the file 
+	// end of the race ! - the smallest time gap 
+	// without queue to file, it is possible to lock files by two processes
 	printf("File locked\n");
 }
 
