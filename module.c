@@ -4,6 +4,7 @@
 #include <unistd.h>
 #include "module.h"
 
+
 FILE *open_file_and_check(char *name_of_file, char *type_of_operation)
 {
 	FILE *fp; // pointer to file
@@ -47,10 +48,10 @@ void load_one_record(char *name_of_database, int size_of_record, int number_of_r
 	printf("Record no. %d loaded\n", number_of_record);
 }
 
-void update_data(char *name_of_database_file, char *name_of_logfile, int size_of_record, int lenght_of_table, struct Record *local_db, struct timespec time_of_last_update)
+void update_data(char *name_of_database_file, char *name_of_logfile, int size_of_record, int lenght_of_table, struct Record *local_db, struct timespec *time_of_last_update)
 {
-    	long s  = time_of_last_update.tv_sec; // time in seconds
-   	long ns = time_of_last_update.tv_nsec; // time in nanosecond
+    	long s  = time_of_last_update->tv_sec; // time in seconds
+   	long ns = time_of_last_update->tv_nsec; // time in nanosecond
    	
    	int pid = getpid();
    	
@@ -74,6 +75,9 @@ void update_data(char *name_of_database_file, char *name_of_logfile, int size_of
 			{	
 				// if new record was found (younger entry made by another prosess)		
 				load_one_record(name_of_database_file, size_of_record, index_of_changes, local_db); // load modified record
+				// update time of last data update
+				time_of_last_update->tv_sec = log_s;
+				time_of_last_update->tv_nsec = log_ns;
 			}
 		} 
 		printf("Database is updated!\n");
@@ -116,7 +120,7 @@ void save_log(char *name_of_logfile, int index_of_changes)
 void lock_file(char *name_of_lockfile)
 {
 	// type of lock: spinlock with mutex in the another binary file
-	// in the future we can try fcntl or lockf - but online reviews about these functions are bad.
+	// in the future we can try fcntl() or lockf() - but online reviews about these functions are bad.
 	
 	FILE *fp; // pointer to file
 	int flag;

@@ -1,9 +1,7 @@
-all: main.o module.o
-	gcc main.o module.o -o target_bin
-main.o: main.c module.h
-	gcc -I . -c main.c
-module.o: module.c module.h
-	gcc -I . -c module.c
+all: module.so
+	gcc main.c -ldl -o target_bin.o
+module.so: module.c module.h
+	gcc -I . -shared -fPIC module.c -o module.so
 clean:
-	rm -rf *.o
-	rm target_bin
+	rm -rf *.o *.so
+
