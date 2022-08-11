@@ -1,4 +1,4 @@
-# Database_access test
+# Database access test
 Test program to check several solutions for Linux, Makefile, GCC, access to database and multithreading... with dynamic library linking.
 
 ## Instruction
